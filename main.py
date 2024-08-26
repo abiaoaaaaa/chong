@@ -11,8 +11,8 @@ import gym
 import numpy as np
 import time
 from stable_baselines3.common.callbacks import EvalCallback
-import env_new
-env = env_new.ElectricVehicleEnv()
+import env
+env = env.ElectricVehicleEnv()
 #vec_env = make_vec_env(env, n_envs=4)
 #check_env(env)
 env = DummyVecEnv([lambda: env])
