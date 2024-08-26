@@ -14,6 +14,7 @@ def test_environment(env, num_steps=10, seed=42):
 
     print("Initial State:")
     print_state(state)
+    #
 
     # 进行一系列的随机动作，并打印每个step后的三要素
     for step in range(num_steps):
