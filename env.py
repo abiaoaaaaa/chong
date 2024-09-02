@@ -11,7 +11,7 @@ import warnings
 from scipy.optimize import fsolve
 import os
 warnings.filterwarnings("ignore")
-np.random.seed(120)
+#np.random.seed(120)
 tf.random.set_seed(120)
 # 支持中文
 plt.rcParams['font.sans-serif'] = ['SimHei']  # 用来正常显示中文标签
@@ -49,10 +49,11 @@ class ElectricVehicleEnv(gym.Env):
         self.observation_space = gym.spaces.Box(
             low=np.array([0, 0, 0, 0], dtype=np.float32),
             high=np.array(
-                [self.num_nodes - 1, 100, 2, self.num_nodes - 1],
+                [self.num_nodes - 1, 50, 50, self.num_nodes - 1],
                 dtype=np.float32),
             dtype=np.float32
         )
+        self.normalize = np.array([1, 0.5 , 25 , 1])
         self.truncated = False
         # 初始化车辆参数
         self.reset()
@@ -63,7 +64,8 @@ class ElectricVehicleEnv(gym.Env):
         """
         # 随机选择一辆车作为当前模拟对象
         self.current_vehicle = np.random.choice(self.num_vehicles)
-        self.current_vehicle = 0
+        #使用一个数据,5个随机数
+        self.current_vehicle = np.random.randint(0, 10)
         vehicle_data = self.evs_50.iloc[self.current_vehicle]
 
         # 设定起点、终点、初始电量、截止时间等信息
@@ -131,10 +133,10 @@ class ElectricVehicleEnv(gym.Env):
 
 
         distance_reward = distance_decrease         # 距离接近终点越多，奖励越大
-        # 计算奖励和判断是否完成任务
+        #计算奖励和判断是否完成任务
         r0 = -energy_consumed
         r1 = distance_reward * self.evs_50.iloc[self.current_vehicle]['行驶能耗'] / 100   # 接近目标距离转换成电量的正奖励
-        r3 = 0
+        r2 = 0
         if self.roads_50.iloc[self.last_node, next_node] == 1:  # 判断是否在充电路段
             charging_power = 100  # 假设充电功率为100kW
             #最多能充多少电
@@ -145,15 +147,17 @@ class ElectricVehicleEnv(gym.Env):
             time_factor = max(0, (self.remaining_time / self.remaining_time_initial))
             charging_reward = time_factor * energy_charged  # 根据时间剩余动态调整充电奖励
             #调试，先不给他充电奖励
-            r3 = charging_reward  # 充电的正奖励
+            r2 = charging_reward  # 充电的正奖励
         self.reward = 0
-        self.reward = r0 * 0 + r1 * 100 + r3 - 50
-        if self.current_node == self.target_node:
-            self.reward += self.current_battery +800  # 到达终点后奖励剩余电量
+        self.reward = r0 * 10 + r1 * 10 + r2*10 - 100
+
+        if self.current_node == self.target_node:  # 到终点
+            self.reward += self.current_battery
             self.done = True
-        elif self.remaining_time <= 0 or self.current_battery <= 0 or self.t > 10:
+        elif self.remaining_time <= 0 or self.current_battery <= 0 or self.t > 10 or self.last_node == self.current_node:
             self.done = True
-            self.reward -= 800  # 任务失败的惩罚
+            self.reward -= 8000   # 任务失败的惩罚
+
 
             # 额外信息，用于调试
         self.info = {
@@ -192,7 +196,8 @@ class ElectricVehicleEnv(gym.Env):
             self.remaining_time,  # 剩余时间
             self.target_node  # 目标节点
         ], dtype=np.float32)
-
+        for i in range(4):
+            state[i] = state[i] * self.normalize[i]
         return state
     def calculate_travel_time(self):
         distance_50 = pd.read_csv('data/distance_50.csv', header=None)
